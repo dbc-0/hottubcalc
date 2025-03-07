@@ -387,6 +387,15 @@
   
   <p>It seems many hot tub salesman recommend keeping the temperature at the desired level at all the times. This seems to be true for tubs that are better able to maintain their temperature. If you live in an area with reasonable electricity rates and have an efficient tub, the difference might only be an additional few dollars per month to have your tub ready to go at all times. Lowering the set point on my cheap model will save around $40 per month though so the answer really depends!
   </p>
+
+    <h3>What about the California Energy Commision's MAEDbS database?</h3>
+
+  <p>There is a <a href="https://cacertappliances.energy.ca.gov/Pages/ApplianceSearch.aspx" target="_blank">database of all hot tubs</a> that can be legally sold in CA that lists standby power. Critically, the standby power in that database includes the power to keep the hot tub at 102F when not in use assuming a test temperature of 56F. So supposedly, if you look up your tub in that database and find the standby power and multiply by 24*30/1000 you'll get kwh used per month if you don't use it. 150mW standby would mean 108 kWh per month.</p>
+
+  <p>This could potentially be a good way to get a more precise parameter for your tub's efficiency input for the model to find overall energy use. Unfortunately, I'm skeptical that the data in that database is useful for practical scenarios (Maybe I'm missing something though). I pulled up some data for a bunch of high end tubs made by Hot Springs (MSRP ~ $20,000) and compared them to Aquaterra, a popular lower end roto-molded Costco/Home Depot brand (MSRP ~ $5,000), and they look... kind of similar? The manufacturer of both is Watkins. Doesn't seem right to me. I did want to link to that database since it's potentially interesting information.</p>
+
+
+  <p>Incidentally, Hot Springs has a <a href="https://www.hotspring.com/learning-center/energy-efficient-hot-tubs" target="_blank">calculator</a> that seems to be based on measured data for their tubs. Their test assumed the tub was used 6 times a week for 30 minutes. The various tubs I tried at different sizes match pretty well with the model if you assume an efficient tub. (I don't see how it aligns with the standby data in the CEC database). I'll update this if I get additional information...</p>
   
  
   <script>
