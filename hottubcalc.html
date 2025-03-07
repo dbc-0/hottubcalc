@@ -315,6 +315,8 @@
     <!-- Results -->
     <div id="results" class="mb-4">
       <h1>Results</h1>
+
+     
       <h2 id="energyUsed"></h2>
       <h2 id="totalCost"></h2>
     </div>
@@ -322,7 +324,7 @@
     <h3>About the model</h3>
 
 
-    <p>The chart below shows the full simulation of the power use and temperature of the hot tub (it defaults to showing a 2 week period).</p>
+    <p>The chart below shows the full simulation of the power use and temperature of the hot tub (it defaults to showing the first 2 weeks of the month).</p>
 
      <!-- Combined Simulation Chart -->
      <div class="chart-container">
@@ -807,9 +809,9 @@
       
       const totalCost = totalEnergy * energyPrice;
       document.getElementById("energyUsed").innerText =
-         "Total Energy Used: " + totalEnergy.toFixed(2) + " kWh";
+         "Total Monthly Energy Used: " + totalEnergy.toFixed(2) + " kWh";
       document.getElementById("totalCost").innerText =
-         "Total Cost: $" + totalCost.toFixed(2);
+         "Total Monthly Cost: $" + totalCost.toFixed(2);
       
       // Combined Simulation Chart with dual axes: Temperature and Power vs Time
       const zoomOptions = {
