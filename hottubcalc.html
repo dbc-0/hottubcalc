@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>A Hot Tub Energy Use and Costs Simulator</title>
+  <!-- Bootstrap CSS for styling -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js for plotting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js Zoom Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <style>
+    body { padding: 20px; }
+    .chart-container { position: relative; height: 300px; margin-bottom: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+<h1>A Hot Tub Energy Use and Cost Simulator</h1>
+
+<p>I noticed that there are seemingly hundreds of Reddit threads with people asking how much the hot tub they have (or want to have) is going to cost to keep hot<sup>
+    <a href="https://www.reddit.com/r/hottub/comments/12epvix/hot_tub_is_adding_300400_in_electricity_each_month/" target="_blank">1</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/s0d73b/electricity_cost_of_owning_a_hot_tub_in_the/" target="_blank">2</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/sphb7a/how_much_did_your_electricity_bill_go_up/" target="_blank">3</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/16ltvl2/cost_of_powering_a_tub/" target="_blank">4</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/1b09jga/how_much_power_does_a_tub_use/" target="_blank">5</a>,
+    <a href="https://www.reddit.com/r/fresno/comments/1chw8qv/if_you_have_a_hot_tub_what_were_your_added/" target="_blank">6</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/18c6zb8/getting_a_hot_tub_delivered_today_about_how_much/" target="_blank">7</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/10aioy9/kwh_over_the_course_of_a_year/" target="_blank">8</a>,
+    <a href="https://diysolarforum.com/threads/my-hot-tub-uses-49-of-my-electricity-per-month-lets-fix-that.74750/" target="_blank">9</a>,
+    <a href="https://www.mig-welding.co.uk/forum/threads/hot-tub-running-costs.122650/" target="_blank">10</a>,
+    <a href="https://www.bogleheads.org/forum/viewtopic.php?t=390925" target="_blank">11</a>,
+    <a href="https://forums.moneysavingexpert.com/discussion/5956950/hot-tub-costing-way-too-much" target="_blank">12</a>,
+    <a href="https://www.poolspaforum.com/forum/index.php?%2Ftopic%2F52918-actual-costs-of-running-a-hot-tub-data-provided%2F=" target="_blank">13</a>,
+    <a href="https://www.thesun.co.uk/money/29801453/warning-cheap-hot-tubs-add-energy-bills-cut-costs/" target="_blank">14</a>,
+    <a href="https://www.thesun.co.uk/money/30509885/home-appliances-turn-off-winter-energy-bills-save-money/" target="_blank">15</a>,
+    <a href="https://www.wired.com/review/intex-purespa-bubble-massage-inflatable-hot-tub" target="_blank">16</a>,
+    <a href="https://www.gq.com/story/best-cold-plunge-tub" target="_blank">17</a>,
+    <a href="https://www.troublefreepool.com/threads/cost-to-heat-hot-tub-year-round-builder-worry.281184/" target="_blank">18</a>,
+    <a href="https://www.reddit.com/r/hottub/comments/16i585d/how_much_will_my_spa_cost_to_run/" target="_blank">19</a>,
+    <a href="https://www.reddit.com/r/askportland/comments/170jd0o/how_much_did_your_outdoor_inflatable_hot_tub_cost/" target="_blank">20</a>
+    </sup></p>
+
+<p>Most are not very helpful. As one person put it, it's actually a really complicated thermodynamics question with a lot of variables.</p>
+
+
+<p>There are also a bunch of existing online "calculators" that are worse than useless (mostly low effort SEO spam. The phrase "not even wrong" comes to mind)<sup>
+    <a href="https://calculator.academy/hot-tub-electric-cost-calculator/" target="_blank">1</a>,
+    <a href="https://www.omnicalculator.com/everyday-life/hot-tub-cost" target="_blank">2</a>,
+    <a href="https://epichottubs.com/spa-calculators/hot-tub-electricty-cost-calculator/" target="_blank">3</a>,
+    <a href="https://www.gridhacker.com/electricity-usage-calculator/hot-tub" target="_blank">4</a>,
+    <a href="https://www.calconic.com/calculator-widgets/hot-tub-running-costs-calculator/5c2f3382078b11001be1526e" target="_blank">5</a>,
+    <a href="https://www.energybot.com/energy-usage/spa.html" target="_blank">6</a>.
+</sup></p>
+
+
+<p>Sounds like a challenge! I have built a full discrete event simulation that allows you to estimate how different assumptions will impact monthly energy use and cost. I tried to calibrate and sanity check it with empirical data I could find, and it's pretty good! You can play with different assumptions below to see how it affects the result. I'll also talk about how the model works at the end.</p>
+
+<p>I found that reasonable setups can lead to monthly costs ranging from $8 to over $300. The oft quoted $30 per month (a dollar a day!) hides a lot of potential variability.</p>
+
+<p>There were some common questions that seem to come up over and over again that we can now try to answer more quantitatively: How much less efficient is a 110V plugin models vs hardwired 220V? Does turning the hot tub's set point down when not in use make a big difference? How much more does a big tub cost to heat than a small one?</p>
+
+<figure style="text-align: center;">
+    <img class="screenshot padded noscale" src="hot-tub-simulation.png" style="max-width: 75%; height: auto;">
+    <figcaption style="font-size: 14px; color: #666; margin-top: 5px;">Simulation output showing hot tub energy use and temperature over time for one use cycle. You can run your own simulation below.</figcaption>
+</figure>
+
+
+<h1>The Hot Tub Energy Calculator</h1>
+
+
+ <h2>Heating Inputs</h2>
+
+
+<p>These inputs control how quickly your tub's heater can raise the temperature and how much energy it uses to do so. 
+
+    <!-- Row for Linked Parameters -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+          <label for="tubSize" class="form-label">Tub Size</label>
+          <select class="form-select" id="tubSize">
+            <option value="150">150 Gallon</option>
+            <option value="175">175 Gallon</option>
+            <option value="200">200 Gallon</option>
+            <option value="225">225 Gallon</option>
+            <option value="250">250 Gallon</option>
+            <option value="275">275 Gallon</option>
+            <option value="300" selected>300 Gallon</option>
+            <option value="325">325 Gallon</option>
+            <option value="350">350 Gallon</option>
+            <option value="375">375 Gallon</option>
+            <option value="400">400 Gallon</option>
+            <option value="425">425 Gallon</option>
+            <option value="450">450 Gallon</option>
+            <option value="500">500 Gallon</option>
+            <option value="600">600 Gallon</option>
+            <option value="700">700 Gallon</option>
+          </select>
+     
+        </div>
+    
+  
+        <div class="col-md-3">
+          <label for="powerUse" class="form-label">Heater Power</label>
+          <select class="form-select" id="powerUse">
+            <option value="1"> Typical Plugin 120V, 1 kW</option>
+            <option value="1.5"> 1.5 kW</option>
+            <option value="4" selected> Typical Hardwired 240V, 4 kW</option>
+            <option value="6">6 kW</option>
+            <option value="11.5">11.5 kW</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="heaterOverhead" class="form-label">Add'l Overhead</label>
+          <select class="form-select" id="heaterOverhead">
+            <option value="0">0 W</option>
+            <option value="0.05">50 W</option>
+            <option value="0.1">100 W</option>
+            <option value="0.15" selected>150 W</option>
+            <option value="0.2">200 W</option>
+          </select>
+        </div>
+        
+      </div>
+  
+
+   
+<h3>Usage inputs</h3>
+
+<p>These inputs set how you use your hot tub. If you drop the temperature when not in use =, you'll save energy but less if you use it a lot since every time you use the tub you will have to reheat it to the desired temperature.</p>
+    <!-- Row for Other Inputs -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label for="timesPerWeek" class="form-label">Times Used per Week</label>
+        <select class="form-select" id="timesPerWeek">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5" selected>5</option>
+          <option value="6">6</option>
+          <option value="7">Everyday</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="useDuration" class="form-label">Duration of Use</label>
+        <select class="form-select" id="useDuration">
+          <option value="0">0 min</option>
+          <option value="10">10 min</option>
+          <option value="20">20 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="40">40 min</option>
+          <option value="60">1 hour</option>
+          <option value="120">2 hours</option>
+        </select>
+      </div>
+    </div>
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label for="usageTemp" class="form-label">Hot Tub Temperature for Use</label>
+        <select class="form-select" id="usageTemp">
+          <option value="98">98°F</option>
+          <option value="99">99°F</option>
+          <option value="100">100°F</option>
+          <option value="101">101°F</option>
+          <option value="102" selected>102°F</option>
+          <option value="103">103°F</option>
+          <option value="104">104°F</option>
+          <option value="105">105°F</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="setPoint" class="form-label">Idle Set Point Temperature</label>
+        <select class="form-select" id="setPoint">
+          <option value="75">75°F</option>
+          <option value="80">80°F</option>
+          <option value="85">85°F</option>
+          <option value="90">90°F</option>
+          <option value="95">95°F</option>
+          <option value="98">98°F</option>
+          <option value="99">99°F</option>
+          <option value="100">100°F</option>
+          <option value="101">101°F</option>
+          <option value="102" selected>102°F</option>
+          <option value="103">103°F</option>
+          <option value="104">104°F</option>
+          <option value="105">105°F</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="jetPowerDuringUse" class="form-label">Jet Power During Use</label>
+        <select class="form-select" id="jetPowerDuringUse">
+          <option value="0">0 kW</option>
+          <option value="1">1 kW</option>
+          <option value="1.5">1.5 kW</option>
+          <option value="2" selected>2 kW</option>
+          <option value="2.5">2.5 kW</option>
+          <option value="3">3 kW</option>
+        </select>
+      </div>
+      </div>
+      <div class="row mb-3">
+
+
+      </br>
+</br>
+
+    <h2>Hot Tub Insulation/Efficiency</h2>
+
+    </br>
+  
+  <div class="row mb-3">
+      <div class="col-md-4">
+        <label for="efficiency" class="form-label">Tub Efficiency (1 = least, 10 = most efficient)</label>
+        <select class="form-select" id="efficiency">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3 Poor insulation with a thin or aging cover</option>
+          <option value="4">4 Below average insulation/heat retention. (think Roto molded tub from Costco/Home Depot)</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7" selected>7 Good tub with a decent cover (think typical hardwired hot tub from a reputable brand with decent insulation)</option>
+          <option value="8">8</option>
+          <option value="9">9 (High-end well-insulated with a thick new cover)</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="ambientTemp" class="form-label">Ambient Temperature (°F)</label>
+        <input type="number" class="form-control" id="ambientTemp" value="60">
+      </div>
+  
+      <div class="col-md-4">
+          <label for="tempDecayMultiplierInUse" class="form-label">In Use Decay Multiplier</label>
+          <select class="form-select" id="tempDecayMultiplierInUse">
+            <option value="1">1</option>
+            <option value="4">4</option>
+            <option value="5" selected>5</option>
+            <option value="6">6</option>
+            <option value="6">7</option>
+          </select>
+        </div>
+    </div>
+  
+  
+  <p>These inputs control how well the hot tub can maintain its temperature (i.e when your set point is below the current temp to let it drift down). A lower efficiency setting means faster temperature drops as does lowering the average outside/ambient temperature the hot tub is exposed to. The thermal decay model is discussed below.</p>
+  
+  <p>The In Use multiplier is how much quicker relative to the normal drop rate the tub loses heat when in use with the cover off.</p>
+
+
+<h3>Model assumptions derived from your inputs</h3>
+
+</br>
+
+<p>Based on your tub's efficiency, tub size, and the average ambient temperature, this is how quickly your tub will cool down. (full curve is available in the Temperature Decay model discussion)</p>
+
+</br>
+
+  <div id="tempStats" style="margin-top: 10px; font-weight: bold;"></div>
+</br>
+</br>
+</br>
+</br>
+
+<p>Based on your tub's efficiency, tub size, and heater power, this is how quickly your tub's temperature will rise when the heater is on.</p>
+
+</br>
+<h5 id="computedRise"></h5>
+</br>
+
+
+</br>
+</br>
+</br>
+
+
+
+        <h3>Energy Cost</h3>
+
+    <p>If you have expensive electricity you will be more sensitive to differences in energy usage. </p>
+        
+      <div class="col-md-4">
+        <label for="energyPrice" class="form-label">Energy Price per kWh ($)</label>
+        <select class="form-select" id="energyPrice">
+          <option value="0.05">$0.05</option>
+          <option value="0.1">$0.10</option>
+          <option value="0.15" selected>$0.15</option>
+          <option value="0.2">$0.20</option>
+          <option value="0.25">$0.25</option>
+          <option value="0.3">$0.30</option>
+          <option value="0.35">$0.35</option>
+          <option value="0.4">$0.40</option>
+          <option value="0.45">$0.45</option>
+          <option value="0.5">$0.50</option>
+          <option value="0.55">$0.55</option>
+          <option value="0.6">$0.60</option>
+          <option value="0.65">$0.65</option>
+          <option value="0.7">$0.70</option>
+          <option value="0.75">$0.75</option>
+          <option value="0.8">$0.80</option>
+          <option value="0.85">$0.85</option>
+          <option value="0.9">$0.90</option>
+          <option value="0.95">$0.95</option>
+          <option value="1">$1.00</option>
+        </select>
+      </div>
+    </div>
+    <!-- Calculate Button -->
+    <div class="mb-3">
+      <button type="button" id="calcButton" class="btn btn-primary">Calculate</button>
+    </div>
+    
+    <!-- Results -->
+    <div id="results" class="mb-4">
+      <h1>Results</h1>
+      <h2 id="energyUsed"></h2>
+      <h2 id="totalCost"></h2>
+    </div>
+    
+    <h3>About the model</h3>
+
+
+    <p>The chart below shows the full simulation of the power use and temperature of the hot tub (it defaults to showing a 2 week period).</p>
+
+     <!-- Combined Simulation Chart -->
+     <div class="chart-container">
+        <canvas id="simChart"></canvas>
+      </div>
+    </div>
+
+
+    <p>The model is a basic discrete event simulation with the following states</p>
+
+    <p><strong>Maintain Temperature</strong>: Heater is assumed to run at some duty cycle (see below for explanation) needed to keep the temperature near the desired set point to match the drop assumed by the temperature decay model.</p>
+    <p><strong>Rise to Use Temp</strong>: When hot tub is used (frequency determined by number of times per week input), the heater is assumed to turn on fully and the temp will rise based on the temperature rise model (see below).</p>
+    <p><strong>In Use</strong>: Energy consumed is calculated similarly as maintain temperature state but at a higher duty cycle needed to keep at Usage Temp plus some additional power for jets.</p>
+    <p><strong>Idle</strong>: Tub's temperature is allowed to drop to the set point. Drop rate follows temperature decay model. Assume negligible energy use during this period.</p>
+
+    <p>The simulator simulates a month of heating/using/idle cycles computing the energy needed to get the tub in each state. Below is a description of the thermodynamic model assumptions. (the code is easily accessible by viewing source in browser.) </p>
+
+    <h4>Temperature decay model</h4>
+    <p>The simulation uses a simple exponential temperature decay model (<a href="https://en.wikipedia.org/wiki/Newton%27s_law_of_cooling" target="_blank">Newton's Law of Cooling)</a> based on the efficency input to set the decay factor of the hypothetical tub.</p>
+
+    <p>Based on the efficiency level you set above and the ambient temperature, this is the full temperature decay curve that will be used by the model for the drop in temperature over time (as well as rate of drop). If you change the efficiency setting above the chart will update.</p>
+    <!-- Efficiency Plot (Implied Decay & Temperature Curve) -->
+    
+    <div class="chart-container">
+      <canvas id="efficiencyChart"></canvas>
+    </div>
+
+<h4>Temperature Rise Model</h4>
+
+    <p>The temperature rise model uses the specific heat of water, the size of the tub, and the power of the heater to determine how fast temperature will increase. It also accounts for the amount of heat loss while the tub is being heated. The heat being removed from the system due to losses derived from the temperature decay model above is subracted from the heat being added from the heater. The difference causes the water to heat up based on it's specific heat. I didn't expect this to match as well as it did when I experimented with my own tub (which has 1kW and 4kW modes and can be filled with different amounts of water). I was prepared to use someting more empiriically derived/handwaved but the physical model worked quite nicely.</p>
+
+    <p>Notes: Having a plugin tub will heat more slowly than a hardwired tub, and you might think that a 4kW heater would heat 4x as fast as a 1kW plugin, but this is not quite the case. The reason this is not the case is the tub is losing heat to the environment which the heater has to fight against. <em>If the tub did have 0 heat loss</em> and a 1 kW heater could heat 1.5 degrees per hour, than a 4kW heater <em>would</em> heat the water 4x as fast at 6 degrees per hour. But if tub is losing .5 degrees per hour due to heat loses, you'll net out at 1 degree per hour and 5.5 degrees per hour respectively. A more efficient tub would do better, but plugin models with small heaters also tend to be less efficient at retaining heat so this can be a bigger factor than you think. (In the limit where heat loss equals gain it would take an infinite amount of time and energy to reach the set point.)</p>
+
+    <p>The rate at which the heater can increase the temperature also impacts the how hard it will have to work to maintain a given temperature. In other words the temperature increase model is used to determine the duty cycle needed to balance the losses from temperature decay model (relevant during Maintain and In Use states). Here the size of the heater makes less of a difference, as long as your heater is big enough to maintain the current set point it doesn't really matter whether it comes from a small 1 kW heater or a 4 kW</p>
+
+    <p>An additional component that affects energy use is the direct power losses due to overhead. When the heater is on, some of the energy is wasted (running circulation jets, running heater electronics). The default fixed 150W overhead means when you are running a 1kW heater you are really using 1.15kW (so about 87% efficient). For a 4kW heater, this same overhead would mean you would be getting 4kW of useful heating out of 4.15kW input (~96% efficiency). This is about a 10% difference on its own in addition to the heat loss affect above.</p>
+        
+    <p>The above two reasons are why the hot tub salesman will tell you a hardwired tub is more efficient than a low powered plug in. Though we'll see that a lot of the savings have more to do with being able to lower the set point when not in use (if desired) and the fact that that $4000 plug-in tub you bought from Costco is going to have worse insulation than the $12000 tub you bought from Hot Springs or Bull Frog. </p>
+    
+
+  <h3>Some Results</h3>
+
+
+  <h4>Default Scenario</h4>
+  <p>
+  For an efficient, hardwired 300-gallon hot tub operating on 240V—maintained at 102°F and used 5 times per week—the simulator estimates an energy consumption of about a bit under 200 kWh per month. This is right at about the average quoted by the <a href="https://www.nspi.org" target="_blank">National Spa and Pool Institute</a> That's about $30 a month assuming electricity costs $.15 per kWh (close to the national average).
+  </p>
+  
+  <h4>When a less efficient tub will cost you...</h4>
+  <p>
+   On the other hand, a cheap 300-gallon plug-in model with below average insulation, kept at 102°F and used five times per week would consume over 400 kWh per month, almost double the "average" case above. In regions with high electricity rates—such as California’s Bay Area or San Diego, where rates can be around $0.75 per kWh—this level of consumption could lead to monthly bills exceeding $300.
+  </p>
+  
+  <h4>What you can do...</h4>
+  <p>
+  You could get a small, energy efficient, two-person hot tub, only use it once per week and lower temperature to 90°F when not in use. And move to North Dakota. The simulator estimates a monthly consumption of less than 100 kWh in this scenario which will result in a monthly bill of around $7 assuming rates are ~$.1 per kWh. That's a big swing and illustrates why simple rules of thumb are not very useful because they are unlikely to apply to your situation. 
+  </p>
+  
+  <h4>Comparison: 120V Plug-in vs. 240V Hardwired Models</h4>
+  <p>
+  I had a relatively cheaper plug-in tub similar to the less efficient section above (in an expensive area costing big bucks). It was convertible to 240V so I was interested to see how much could be saved by upgrading so it could use the 4kW heater. There were some nominal direct savings due to better heating efficiency but the bigger gain was the ability to lower the set point when not in use (it's not practical to lower the set point on a plugin as it takes so long to heat up). Power use dropped from a over 315 kWh per month to under 250kWh, inline with the model.</p>
+  
+  <p>It seems many hot tub salesman recommend keeping the temperature at the desired level at all the times. This seems to be true for tubs that are better able to maintain their temperature. If you live in an area with reasonable electricity rates and have an efficient tub, the difference might only be an additional few dollars per month to have your tub ready to go at all times. Lowering the set point on my cheap model will save around $40 per month though so the answer really depends!
+  </p>
+  
+ 
+  <script>
+
+
+//////////////////////////// Simulation Code ////////////////////////////////////////////
+
+    // Function to update computed temperature rise based on linked parameters
+    function updateComputedRise() {
+    
+        const ambient = parseFloat(document.getElementById("ambientTemp").value);
+        const usageTemp = parseFloat(document.getElementById("usageTemp").value);
+
+        computedTempRisePerHour = computeTempRise((ambient + usageTemp)/2)
+      document.getElementById("computedRise").innerText =
+         "Temperature rise when the heater is on (half way between ambient and usage temp): \n" + computedTempRisePerHour.toFixed(2) + " °F/hour";
+
+
+    }
+    function getk_decay(efficiency, tubSize) {
+    
+    // Return the k_decay value for the temperature loss model */
+
+    // k_decay values are estimated from empirical data for different tub types that 1) I have access to, 2) cross referenced with what random people on the internet said, 3) checked against Hot Springs published empirical measurements for their high efficiency $20k tubs of different sizes to make sure things lined up on the high end.
+
+    // the base k values are from the a 300 gallon and then adjusted using a piecewise linear mapping to empirical k_decay values for smaller and larger tubs 
+        let adjustment = 0;
+        if (tubSize < 300) {
+            // For tub sizes between 100 and 300 gallons: interpolate between -1.5 (at 100) and 0 (at 300)
+            if (tubSize <= 100) {
+            adjustment = -1.5;
+            } else {
+            adjustment = -1.5 + (tubSize - 100) * (1.5 / (300 - 100));
+            }
+        } else {
+            // For tub sizes 300 and above:
+            if (tubSize <= 450) {
+            // Interpolate between 0 (at 300) and +1 (at 450)
+            adjustment = (tubSize - 300) * (1 / (450 - 300));
+            } else if (tubSize <= 700) {
+            // Interpolate between +1 (at 450) and +1.5 (at 700)
+            adjustment = 1 + (tubSize - 450) * (0.5 / (700 - 450));
+            } else {
+            // For tub sizes above 700, extrapolate with the same slope as between 450 and 700 (0.5/250 = 0.002 per gallon)
+            adjustment = 1.5 + (tubSize - 700) * 0.002;
+            }
+        }
+        
+        // Compute the effective efficiency (may be fractional)
+        let effectiveEfficiency = efficiency + adjustment;
+        // Clamp the effective efficiency between 1 and 10
+        effectiveEfficiency = Math.min(10, Math.max(1, effectiveEfficiency));
+        
+        // Lookup table for a 300-gallon tub (efficiency levels 1-10)
+        // Note: Higher efficiency means lower k_decay (i.e., slower heat loss)
+        const lookup = {
+            10: 0.00321,
+            9:  0.00439,
+            8:  0.00556,
+            7:  0.00677,
+            6:  0.00802,
+            5:  0.00930,
+            4:  0.01200,
+            3:  0.01486,
+            2:  0.01958,
+            1:  0.02888
+        };
+
+        // We'll convert the lookup table into an array for interpolation,
+        // where index 0 corresponds to efficiency level 1, index 9 to level 10.
+        const levels = [1,2,3,4,5,6,7,8,9,10];
+        const kValues = levels.map(level => lookup[level]);
+        
+        // Map effectiveEfficiency (range 1–10) to an index in the array (0–9)
+        let pos = effectiveEfficiency - 1; // e.g., effectiveEfficiency = 1 gives pos = 0
+        let lowerIndex = Math.floor(pos);
+        let upperIndex = Math.ceil(pos);
+        
+        if (lowerIndex === upperIndex) {
+            return kValues[lowerIndex];
+        } else {
+            let fraction = pos - lowerIndex;
+            // Linear interpolation between the two adjacent k_decay values
+            return kValues[lowerIndex] + fraction * (kValues[upperIndex] - kValues[lowerIndex]);
+        }
+    }
+
+  
+
+
+    //  heater power input will raise water temp based on specific heat minus losses due to environment using the temperature decay model at current temperature.
+    function computeTempRise(temperature){
+
+      const efficiency = parseFloat(document.getElementById("efficiency").value);
+      const ambient = parseFloat(document.getElementById("ambientTemp").value);
+      const usageTemp = parseFloat(document.getElementById("usageTemp").value);
+      const tubSize = parseFloat(document.getElementById("tubSize").value);
+      //const k_decay = 0.0237 - 0.0041 * efficiency;
+      const k_decay = getk_decay(efficiency, tubSize);
+      // temp decay at midpint of usageTemp and ambient. represent average drag on temperature while trying to maintain temp
+      const temperatureLoss = k_decay * (temperature - ambient);
+
+      
+      const heaterPower = parseFloat(document.getElementById("powerUse").value);
+
+
+      const lbsPerGallon = 8.34; // Pounds per gallon of water
+      const specificHeat = 1; // BTU/(lb·°F) for water
+      const kWtoBTUhr = 3412; // 1 kW = 3412 BTU/hr
+
+      // Calculations
+      const totalMassLbs = tubSize * lbsPerGallon; // Total mass of water in pounds
+      const energyPerDegree = totalMassLbs * specificHeat; // BTU required to raise temperature by 1°F
+      const energyInputBTUhr = heaterPower * kWtoBTUhr; // Energy input in BTU per hour
+
+      // Temperature rise calculation without cooling
+      const tempRiseWithoutCooling = energyInputBTUhr / energyPerDegree; // in °F/hr
+
+      // Accounting for cooling rate
+      const computedTempRisePerHour = tempRiseWithoutCooling - temperatureLoss; // net temperature rise in °F/hr
+      return computedTempRisePerHour;
+
+    }
+
+    // Update the efficiency chart using the exponential decay model.
+    // We simulate T(t) = T_a + (100 - T_a) exp(-k*t) and its derivative.
+
+    // plot for temperature loss model
+    function updateEfficiencyPlot() {
+        const efficiency = parseFloat(document.getElementById("efficiency").value);
+        const ambient = parseFloat(document.getElementById("ambientTemp").value);
+        const tubSize = parseFloat(document.getElementById("tubSize").value);
+        // Compute decay constant k based on efficiency:
+        //const k_decay = 0.0237 - 0.0041 * efficiency; // hr^-1
+        const k_decay = getk_decay(efficiency, tubSize);
+        const dt = 10; // minutes
+        const totalMinutes = 48 * 60;
+        const steps = totalMinutes / dt;
+        let timeArr = []; // hours
+        let tempArr = [];
+        let dropArr = []; // instantaneous drop rate (°F/hr)
+        const T0 = 100;
+        for (let i = 0; i <= steps; i++) {
+            let t = i * dt / 60;
+            timeArr.push(t);
+            let T = ambient + (T0 - ambient) * Math.exp(-k_decay * t);
+            tempArr.push(T);
+            let dTdt = -k_decay * (T - ambient);
+            dropArr.push(dTdt);
+        }
+        const ctxEff = document.getElementById("efficiencyChart").getContext("2d");
+        if (window.efficiencyChartInstance) {
+            window.efficiencyChartInstance.data.labels = timeArr;
+            window.efficiencyChartInstance.data.datasets[0].data = tempArr;
+            window.efficiencyChartInstance.data.datasets[1].data = dropArr;
+            window.efficiencyChartInstance.update();
+        } else {
+            window.efficiencyChartInstance = new Chart(ctxEff, {
+            type: 'line',
+            data: {
+                labels: timeArr,
+                datasets: [
+                {
+                    label: 'Tub Temperature (°F)',
+                    data: tempArr,
+                    borderColor: 'blue',
+                    fill: false,
+                    pointRadius: 2,
+                    borderWidth: 2,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Instantaneous Drop Rate (°F/hr)',
+                    data: dropArr,
+                    borderColor: 'green',
+                    fill: false,
+                    pointRadius: 2,
+                    borderWidth: 2,
+                    yAxisID: 'y1'
+                }
+                ]
+            },
+            options: {
+                scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Time (hours)' },
+                    min: 0,
+                    max: 48,
+                    ticks: {
+                        callback: function(value, index, values) {
+                        return Math.round(value) + "h";
+                        }
+                    }
+                },
+                y: {
+                    title: { display: true, text: 'Temperature (°F)' },
+                    position: 'left'
+                },
+                y1: {
+                    title: { display: true, text: 'Drop Rate (°F/hr)' },
+                    position: 'right',
+                    grid: { drawOnChartArea: false }
+                }
+                },
+                plugins: {
+                title: { display: true, text: 'Exponential Temperature Decay & Drop Rate vs. Time' }
+                }
+            }
+            });
+        }
+
+
+        // Calculate the instantaneous (initial) drop rate and total drop over 24 hours
+        const initialDropRate = k_decay * (T0 - ambient); // °F/hr (positive value)
+        const drop24 = (T0 - ambient) * (1 - Math.exp(-k_decay * 24)); // Total drop in 24 hours
+        
+        const tempDecayMultiplierInUse = parseFloat(document.getElementById("tempDecayMultiplierInUse").value);
+
+        // Update the additional text div for summary of drops
+        document.getElementById("tempStats").innerHTML =
+        "Computed drop rate from 100F: " + initialDropRate.toFixed(2) + "°F/hr <small><em>(implied k_decay: " + k_decay + ")</em></small><br>" +
+        "Total drop in 24 hours: " + drop24.toFixed(2) + "°F<br>" +
+        "Drop rate when in use from 100F (cover off): " + (tempDecayMultiplierInUse*initialDropRate).toFixed(2) + "°F/hr";
+
+    }
+
+
+    // Set up event listeners for linked drop-downs to make plots update
+    document.getElementById("tubSize").addEventListener("change", updateComputedRise);
+    document.getElementById("powerUse").addEventListener("change", updateComputedRise);
+    document.getElementById("heaterOverhead").addEventListener("change", updateComputedRise);
+    document.getElementById("efficiency").addEventListener("change", updateComputedRise);
+    document.getElementById("ambientTemp").addEventListener("change", updateComputedRise);
+
+    document.getElementById("efficiency").addEventListener("change", updateEfficiencyPlot);
+    document.getElementById("ambientTemp").addEventListener("change", updateEfficiencyPlot);
+    document.getElementById("tempDecayMultiplierInUse").addEventListener("change", updateEfficiencyPlot);
+    document.getElementById("jetPowerDuringUse").addEventListener("change", updateEfficiencyPlot);
+    document.getElementById("tubSize").addEventListener("change", updateEfficiencyPlot);
+  
+
+    // Initialize computed values and efficiency plot on load.
+    updateComputedRise();
+    updateEfficiencyPlot();
+    simulate(); // do one simulation on page load for defaults
+
+    document.getElementById("calcButton").addEventListener("click", simulate);
+    ///////////////////////////////////// Main simulation function /////////////////////////// 
+
+   
+    function simulate() {
+      // Read inputs
+      const efficiency     = parseFloat(document.getElementById("efficiency").value);
+      const heaterPower    = parseFloat(document.getElementById("powerUse").value);
+      const heaterOverhead = parseFloat(document.getElementById("heaterOverhead").value);
+      const tubSize        = parseFloat(document.getElementById("tubSize").value);
+      const timesPerWeek   = parseFloat(document.getElementById("timesPerWeek").value);
+      const useDuration    = parseFloat(document.getElementById("useDuration").value);
+      const usageTemp      = parseFloat(document.getElementById("usageTemp").value);
+      const setPoint       = parseFloat(document.getElementById("setPoint").value);
+      const energyPrice    = parseFloat(document.getElementById("energyPrice").value);
+      const ambient        = parseFloat(document.getElementById("ambientTemp").value);
+      const tempDecayFactor= parseFloat(document.getElementById("tempDecayMultiplierInUse").value);
+      const jetPower       = parseFloat(document.getElementById("jetPowerDuringUse").value);
+
+     // Exponential decay constant from efficiency.
+    
+      const k_decay = getk_decay(efficiency, tubSize);
+
+      // Simulation parameters
+      const dt = 10; // minutes
+      const totalMinutes = 30 * 24 * 60; // 30 days
+      const steps = totalMinutes / dt;
+      let timesPerWeekAdjusted = timesPerWeek;
+      if(timesPerWeek == 0) { timesPerWeekAdjusted = 0.00001; }
+      const timeBetweenUses = (7 * 24 * 60) / timesPerWeekAdjusted;
+      
+      let timeSeries = [], tempSeries = [], powerSeries = [], stateSeries = [], energySeries = [], costSeries = [];
+      let currentTemp = usageTemp;
+      let state = "raisingForUse"; // idle, MaintainingTemp, raisingForUse, inUse
+      let nextUseTime = timeBetweenUses;
+      let useEndTime = 0;
+      let totalEnergy = 0;
+      
+   
+      // Main state machine loop stepping through time.
+      for (let i = 0; i < steps; i++) {
+        let currentTime = i * dt;
+        let instantaneousPower = 0;
+        
+        if((state === "idle" || state === "MaintainingTemp") && currentTime >= nextUseTime) {
+            // its time to use the tub again.
+            // switch to raisigforuse state (unless temp is already were it needs to be, then just set to in use)
+          if(currentTemp < usageTemp) {
+            state = "raisingForUse";
+          } else {
+            state = "inUse";
+            useEndTime = currentTime + useDuration;
+          }
+          nextUseTime = currentTime + timeBetweenUses; // either way note the next use time 
+        }
+        
+        switch(state) {
+          case "idle":
+            {
+            // tub is being allowed to drift down to lower set point temp after use.    
+            
+              if(currentTemp > ambient) {
+                // Exponential decay update:
+                currentTemp = ambient + (currentTemp - ambient) * Math.exp(-k_decay*(dt/60));
+                if(currentTemp < ambient) currentTemp = ambient;
+
+                if(currentTemp <= setPoint){
+                    state = "MaintainingTemp";
+                    currentTemp = setPoint;
+                    
+                    
+                }else{
+                    instantaneousPower = 0;
+                }
+
+              } else {
+                currentTemp = ambient;
+                instantaneousPower = 0;
+              }
+              
+
+
+
+
+            }
+            break;
+          case "MaintainingTemp":
+            {
+             // tub is at set point and needs to run heater at some duty cycle to maintain temp (balance heat loss decay with heat input)
+
+              currentTemp = setPoint;
+              // To maintain, we compute the drop rate at setPoint: dT/dt = - k_decay*(setPoint-ambient)
+              let dropRateAtSet = k_decay*(setPoint-ambient); // positive value
+              
+            
+              let dutyCycle = dropRateAtSet/(computeTempRise(currentTemp) + dropRateAtSet);
+
+              dutyCycle = Math.min(dutyCycle, 1);
+              let avgPower = dutyCycle * (heaterPower + heaterOverhead);
+              instantaneousPower = avgPower;
+              totalEnergy += avgPower * (dt/60);
+
+            }
+            break;
+          case "raisingForUse":
+            {
+            // heater is on full power. water heats based on specific heat and heat in minus losses to environment
+
+              const delta = computeTempRise(currentTemp)*(dt/60);
+              currentTemp += delta;
+              instantaneousPower = heaterPower + heaterOverhead;
+              totalEnergy += instantaneousPower*(dt/60);
+              if(currentTemp >= usageTemp  ) {
+                if(useDuration != 0){
+                    currentTemp = usageTemp;
+                    state = "inUse";
+                    useEndTime = currentTime + useDuration;
+                }else{
+                    state = "idle";
+                }
+              }
+            }
+            break;
+          case "inUse":
+            {
+             
+
+              // During use, similar to maintain temp state but at higher temp and with cover off energy loss assumptions. Also add in power consumed by jets
+              currentTemp = usageTemp;
+              let dropRateAtSet = k_decay*tempDecayFactor*(usageTemp-ambient);
+              let dutyCycle = dropRateAtSet/computeTempRise(currentTemp);
+              dutyCycle = Math.min(dutyCycle,1);
+              let avgPower = dutyCycle * heaterPower+jetPower;
+              if(heaterPower <= 1.5 && avgPower > 1.5){
+                // if plugin cap total power while in use at heaterPower. (max power limited by 110V connection)
+                avgPower = 1.5;
+
+              }
+              instantaneousPower = avgPower;
+              totalEnergy += avgPower*(dt/60);
+              if(currentTime >= useEndTime) {
+                if(currentTemp <= setPoint){
+                    state = "MaintainingTemp"; // go direct to maintaining temp if setpoint is same as usage point
+                }else{
+                    state = "idle";
+                }
+                
+              }
+
+            }
+            break;
+          default:
+            break;
+        }
+        timeSeries.push(currentTime);
+        tempSeries.push(currentTemp);
+        powerSeries.push(instantaneousPower);
+        stateSeries.push(state);
+        energySeries.push(totalEnergy);
+        costSeries.push(totalEnergy*energyPrice)
+      }
+      
+      const totalCost = totalEnergy * energyPrice;
+      document.getElementById("energyUsed").innerText =
+         "Total Energy Used: " + totalEnergy.toFixed(2) + " kWh";
+      document.getElementById("totalCost").innerText =
+         "Total Cost: $" + totalCost.toFixed(2);
+      
+      // Combined Simulation Chart with dual axes: Temperature and Power vs Time
+      const zoomOptions = {
+        plugins: {
+          zoom: {
+            pan: { enabled: true, mode: 'x' },
+            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+          }
+        }
+      };
+      
+      const ctxSim = document.getElementById("simChart").getContext("2d");
+      if(window.simChartInstance) window.simChartInstance.destroy();
+      window.simChartInstance = new Chart(ctxSim, {
+        type: 'line',
+        data: {
+            labels: timeSeries,
+            datasets: [
+                {
+                label: 'Tub Temperature (°F)',
+                data: tempSeries,
+                borderColor: 'blue',
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 2,
+                yAxisID: 'y',
+                },
+                {
+                label: 'Power Usage (kW)',
+                data: powerSeries,
+                borderColor: 'red',
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 2,
+                yAxisID: 'y1',
+                },
+                {
+                label: 'Energy (kWh)',
+                data: energySeries,
+                borderColor: 'orange',
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 2,
+                yAxisID: 'y2',
+                }
+            
+            ]
+            },
+        options: {
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Time (hours)' },
+                    min: 0,
+                    max: 2*10080, // one week in minutes
+                    ticks: {
+                    callback: function(value) {
+                        return Math.round(value / 60) + "h";
+                    }
+                    }
+                },
+                y: {
+                title: { display: true, text: 'Temperature (°F)' },
+                position: 'left'
+                },
+                y1: {
+                title: { display: true, text: 'Power (kW)' },
+                position: 'right',
+                grid: { drawOnChartArea: false }
+                },
+                y2: {
+                title: { display: true, text: 'Energy (kWh)' },
+                position: 'left',
+                grid: { drawOnChartArea: false }
+                }
+            },
+          plugins: {
+            title: { display: true, text: 'Simulation: Temperature and Power Usage vs Time' }
+          },
+          ...zoomOptions
+        }
+      });
+    }
+  </script>
+</body>
+</html>
